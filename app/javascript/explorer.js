@@ -39,6 +39,7 @@ function boot() {
 
   const el = {
     q: $('q'), form: $('searchForm'), presets: $('presets'),
+    topicsMenu: $('topicsMenu'), topicLabel: $('topicLabel'), optMenu: $('optMenu'), optDot: $('optDot'),
     modeOne: $('modeOne'), modeGrid: $('modeGrid'), fmtArt: $('fmtArt'), fmtCard: $('fmtCard'),
     favBtn: $('favBtn'), favCount: $('favCount'), extras: $('extrasBtn'), noUb: $('noUbBtn'), hideSeen: $('hideSeenBtn'),
     main: $('main'), single: $('single'), art: $('art'), hitPrev: $('hitPrev'), hitNext: $('hitNext'),
@@ -580,6 +581,8 @@ function boot() {
     el.extras.setAttribute('aria-pressed', String(S.extras));
     el.noUb.setAttribute('aria-pressed', String(S.noUB));
     el.hideSeen.setAttribute('aria-pressed', String(S.hideSeen));
+    // A dot on the options button when a filter is not at its default value.
+    el.optDot.hidden = S.hideSeen && S.noUB && !S.extras;
     el.setChip.hidden = !S.set;
     if (S.set) {
       const x = document.createElement('span');
@@ -618,13 +621,20 @@ function boot() {
       b.title = q || 'All cards';
       b.addEventListener('click', () => {
         if (needsExtras && !S.extras) { S.extras = true; applyFilterUI(); }
+        el.topicsMenu.open = false;
         start(q);
       });
       el.presets.append(b);
     }
   }
   function syncPresets() {
-    el.presets.querySelectorAll('.chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === S.q)));
+    let label = 'Topics';
+    el.presets.querySelectorAll('.chip').forEach((b) => {
+      const on = b.dataset.q === S.q;
+      b.setAttribute('aria-pressed', String(on));
+      if (on && S.q) label = b.textContent;
+    });
+    el.topicLabel.textContent = label;
   }
 
   /* ---------- Favorites ---------- */
@@ -906,7 +916,7 @@ function boot() {
   el.hitNext.addEventListener('click', () => step(1));
   buildRate(el.rateOne, () => (S.mode === 'one' ? S.history[S.pos] : null));
   el.favBtn.addEventListener('click', openFavPanel);
-  el.accBtn.addEventListener('click', openAccPanel);
+  el.accBtn.addEventListener('click', () => { closeMenus(); openAccPanel(); });
   el.favClose.addEventListener('click', closePanels);
   el.accClose.addEventListener('click', closePanels);
   el.setBtn.addEventListener('click', openSetPanel);
@@ -940,10 +950,12 @@ function boot() {
     }
   });
 
-  // The mouse wheel scrolls the quick picks horizontally.
-  el.presets.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { el.presets.scrollLeft += e.deltaY; e.preventDefault(); }
-  }, { passive: false });
+  // Drop-down menus: only one open at a time, closed by an outside click or Escape.
+  const menus = [el.topicsMenu, el.optMenu];
+  const closeMenus = (except) => menus.forEach((m) => { if (m !== except) m.open = false; });
+  const menuOpen = () => menus.some((m) => m.open);
+  menus.forEach((m) => m.addEventListener('toggle', () => { if (m.open) closeMenus(m); }));
+  document.addEventListener('click', (e) => { if (!e.target.closest('.menu')) closeMenus(); });
 
   let touchX = null;
   el.single.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
@@ -964,12 +976,13 @@ function boot() {
   document.addEventListener('keydown', (e) => {
     const typing = e.target.closest && e.target.closest('input, textarea, select');
     if (e.key === 'Escape') {
+      if (menuOpen()) { closeMenus(); return; }
       if (panelOpen()) closePanels();
       else if (typing) e.target.blur();
       return;
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (panelOpen()) return;
+    if (panelOpen() || menuOpen()) return;
     const k = e.key.toLowerCase();
     if (e.key === 'ArrowRight' || e.key === ' ') {
       e.preventDefault();

@@ -24,6 +24,17 @@ bin/rails test
 
 ## Deployment
 
-Configured for [Kamal](https://kamal-deploy.org) in `config/deploy.yml` (fill in your server and registry). The SQLite databases live in the `artscry_storage` volume. In production, `ImportCatalogJob` refreshes the set catalog every Monday (`config/recurring.yml`).
+Deployed with [Kamal](https://kamal-deploy.org) to a single Hetzner VM (shared with another app behind the same kamal-proxy), at https://artscry.62.238.30.155.sslip.io. See `config/deploy.yml`.
+
+Prerequisites on the Mac: Colima running with Rosetta (`colima start --vm-type vz --vz-rosetta`), and a GitHub PAT with `write:packages` exported as `KAMAL_REGISTRY_PASSWORD`. Kamal builds from the committed `HEAD`, so commit first.
+
+```sh
+bin/kamal setup      # first time only: pushes the image, boots the app behind the proxy
+bin/kamal catalog    # first time only: import the set catalog (then refreshed every Monday)
+bin/kamal deploy     # every later release
+bin/kamal logs       # tail logs; also: console, shell, dbc
+```
+
+The SQLite databases live in the `artscry_storage` Docker volume on the server.
 
 Card data and images © Wizards of the Coast, provided by Scryfall. Artscry is unofficial fan content, not approved or endorsed by Wizards.

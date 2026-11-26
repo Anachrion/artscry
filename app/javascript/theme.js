@@ -1,4 +1,6 @@
-// Theme switcher: Auto (follows the OS) → Light → Dark.
+// Theme switcher. Two kinds of controls:
+//  - [data-theme-toggle] buttons cycle Auto (follows the OS) → Light → Dark;
+//  - [data-theme-set="auto|light|dark"] buttons pick a mode directly (segmented control).
 // The choice is stored in localStorage and applied as <html data-theme="…">.
 // An inline script in the layout applies it before first paint to avoid a flash.
 const KEY = 'theme';
@@ -16,11 +18,15 @@ function apply(mode) {
     b.innerHTML = `<span class="ic" aria-hidden="true">${icon}</span> ${label}`;
     b.title = `Theme: ${label} (click to change)`;
   });
+  document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === mode)));
 }
 
 function boot() {
   document.querySelectorAll('[data-theme-toggle]').forEach((b) => {
     b.addEventListener('click', () => apply(ORDER[(ORDER.indexOf(current()) + 1) % ORDER.length]));
+  });
+  document.querySelectorAll('[data-theme-set]').forEach((b) => {
+    b.addEventListener('click', () => apply(b.dataset.themeSet));
   });
   apply(current());
 }
