@@ -1,0 +1,23 @@
+<% content_for :title, "Sign in · Artscry" %>
+<%= render layout: "shared/auth_card", locals: {
+      subtitle: "Magic card art",
+      footer: safe_join([ "No account yet? ", link_to("Create one", new_registration_path, class: "font-medium text-accent hover:underline") ])
+    } do %>
+  <% if flash[:alert] %>
+    <p class="mb-5 rounded-lg bg-fav/15 px-3 py-2 text-sm text-danger"><%= flash[:alert] %></p>
+  <% end %>
+  <% if flash[:notice] %>
+    <p class="mb-5 rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent"><%= flash[:notice] %></p>
+  <% end %>
+  <%= form_with url: session_path, class: "space-y-5" do |form| %>
+    <div class="space-y-1.5">
+      <%= form.label :email_address, "Email address", class: "block text-sm text-muted" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", value: params[:email_address], class: "field" %>
+    </div>
+    <div class="space-y-1.5">
+      <%= form.label :password, "Password", class: "block text-sm text-muted" %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72, class: "field" %>
+    </div>
+    <%= form.submit "Sign in", class: "btn-primary" %>
+  <% end %>
+<% end %>

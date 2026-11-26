@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Colors come from app/assets/stylesheets/theme.css (light and dark palettes). */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-panel: var(--panel);
+  --color-raise: var(--raise);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-fav: var(--fav);
+  --color-danger: var(--danger-text);
+  --font-display: var(--f-display);
+  --font-ui: var(--f-ui);
+}
+
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-line bg-ink px-3 py-2.5 text-[15px] text-text placeholder:text-muted/60
+      transition focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none;
+  }
+  .btn-primary {
+    @apply w-full cursor-pointer rounded-lg bg-accent px-4 py-2.5 font-semibold text-on-accent transition
+      hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+}

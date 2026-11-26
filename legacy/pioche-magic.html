@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pioche Magic</title>
+<link rel="preconnect" href="https://api.scryfall.com">
+<link rel="preconnect" href="https://cards.scryfall.io">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Spectral:ital,wght@0,600;1,500&display=swap">
+<style>
+/* Layout : plein écran. Barre d'outils en haut, l'illustration au centre, cartouche (nom, artiste, édition) en bas. */
+:root{
+  --ink:#121110;
+  --ink-veil:rgb(18 17 16 / .96);
+  --panel:#1b1916;
+  --raise:#27231f;
+  --line:#37322b;
+  --text:#efe9df;
+  --muted:#a69d8f;
+  --accent:#d9a85b;
+  --fav:#e66a5f;
+  --scrim:rgb(0 0 0 / .78);
+  --scrim-soft:rgb(0 0 0 / .45);
+  --f-display:"Spectral", Georgia, "Times New Roman", serif;
+  --f-ui:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ratio:626 / 457;
+  color-scheme:dark;
+}
+body.fmt-card{--ratio:488 / 680}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--ink);color:var(--text);
+  font:14px/1.45 var(--f-ui);
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- Barre du haut ---------- */
+.top{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  grid-template-areas:"brand search toggles" "presets presets presets";
+  gap:10px 18px;align-items:center;
+  padding-block:12px 10px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  background:var(--panel);border-bottom:1px solid var(--line);
+}
+.brand{grid-area:brand;min-width:0;overflow:hidden;font-family:var(--f-display);font-style:italic;font-weight:500;font-size:23px;line-height:1.1;white-space:nowrap}
+.brand small{font-family:var(--f-ui);font-style:normal;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-left:8px}
+.search{grid-area:search;display:flex;min-width:0;max-width:640px}
+.search input{
+  flex:1;min-width:0;
+  background:var(--ink);color:var(--text);
+  border:1px solid var(--line);border-right:0;border-radius:8px 0 0 8px;
+  padding:8px 12px;font:13px/1.4 var(--f-mono);
+}
+.search input::placeholder{color:var(--muted)}
+.search button{background:var(--accent);color:var(--ink);border:0;border-radius:0 8px 8px 0;padding:0 16px;font-weight:600;cursor:pointer}
+.toggles{grid-area:toggles;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);padding:7px 12px;cursor:pointer;white-space:nowrap}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--raise);color:var(--text)}
+.ghost{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line);background:transparent;color:var(--text);
+  border-radius:8px;padding:7px 12px;cursor:pointer;text-decoration:none;white-space:nowrap;
+}
+.ghost:hover{background:var(--raise)}
+.ghost:disabled{opacity:.45;cursor:default;background:transparent}
+.count-pill{font-variant-numeric:tabular-nums;color:var(--muted)}
+.filters{grid-area:presets;display:flex;gap:12px;align-items:center;min-width:0}
+.presets{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;padding-right:28px;
+  -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent);mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent)}
+.filter-toggles{display:flex;gap:6px;flex-shrink:0;padding-left:12px;border-left:1px solid var(--line)}
+.chip.toggle{display:inline-flex;align-items:center;gap:7px}
+.chip.toggle::before{content:"";width:9px;height:9px;border:1.5px solid currentColor;border-radius:2px}
+.chip.toggle[aria-pressed="true"]::before{background:currentColor}
+@media (max-width:640px){
+  .filters{flex-wrap:wrap}
+  .presets{flex-basis:100%}
+  .filter-toggles{padding-left:0;border-left:0}
+}
+.presets::-webkit-scrollbar{display:none}
+.chip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:4px 12px;white-space:nowrap;cursor:pointer;font-size:13px}
+.chip:hover{color:var(--text)}
+.chip[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+
+@media (max-width:1150px){
+  .brand small{display:none}
+}
+@media (max-width:900px){
+  .top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"brand toggles" "search search" "presets presets"}
+  .search{max-width:none}
+}
+@media (max-width:560px){
+  .top{grid-template-columns:minmax(0,1fr);grid-template-areas:"brand" "toggles" "search" "presets"}
+  .toggles{justify-content:flex-start}
+}
+
+/* ---------- Scène ---------- */
+main{position:relative;min-height:0;overflow:hidden}
+.stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+#art{display:block;user-select:none;-webkit-user-drag:none}
+body:not(.fmt-card) #art{width:100%;height:100%;max-width:1500px;object-fit:contain}
+body.fmt-card #art{width:auto;height:auto;max-width:100%;max-height:100%;border-radius:4.75% / 3.4%}
+.hit{position:absolute;top:0;bottom:0;border:0;padding:0;background:transparent;cursor:pointer;color:var(--text)}
+.hit.prev{left:0;width:35%}
+.hit.next{right:0;width:65%}
+.hit::after{position:absolute;top:50%;transform:translateY(-50%);font:300 60px/1 var(--f-ui);opacity:0;transition:opacity .15s;text-shadow:0 2px 14px var(--scrim)}
+.hit.prev::after{content:"‹";left:22px}
+.hit.next::after{content:"›";right:22px}
+.hit:hover::after,.hit:focus-visible::after{opacity:.75}
+.hit:focus-visible{outline:none}
+
+.tiles{display:grid;gap:10px;align-content:start}
+#grid{position:absolute;inset:0;overflow:auto;padding:16px;grid-template-columns:repeat(var(--cols, 4), minmax(0, 1fr))}
+.tile{position:relative;margin:0;aspect-ratio:var(--ratio);max-width:100%;border-radius:6px;overflow:hidden;background:var(--raise)}
+body.fmt-card .tile{border-radius:4.75% / 3.4%}
+.tile .open{display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.tile .open:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tile img{display:block;width:100%;height:100%;object-fit:cover}
+.tile.broken .open::after{content:"Image indisponible";position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:12px}
+.tile figcaption{
+  position:absolute;left:0;right:0;bottom:0;padding:30px 10px 8px;
+  background:linear-gradient(transparent, var(--scrim));
+  font-size:12px;line-height:1.3;color:var(--text);
+  opacity:0;transition:opacity .15s;pointer-events:none;
+}
+.tile figcaption b{font-family:var(--f-display);font-weight:600;font-size:14px}
+.tile:hover figcaption,.tile:focus-within figcaption{opacity:1}
+.heart{
+  position:absolute;top:6px;right:6px;width:32px;height:32px;
+  display:grid;place-items:center;border:0;border-radius:50%;
+  background:var(--scrim-soft);color:var(--text);cursor:pointer;opacity:0;transition:opacity .15s;
+}
+.tile:hover .heart,.heart.on,.heart:focus-visible{opacity:1}
+.heart.on,.fav-ic.on{color:var(--fav)}
+.heart svg,.fav-ic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.heart.on svg,.fav-ic.on svg{fill:currentColor}
+
+.loader{
+  position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:3;
+  display:flex;align-items:center;gap:10px;padding:8px 14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:13px;
+}
+.loader::before{content:"";width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.message{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+.message p{max-width:54ch;margin:0;font-size:15px}
+.message code,.empty code{font-family:var(--f-mono);font-size:.92em;color:var(--text);background:var(--raise);padding:1px 6px;border-radius:4px}
+
+/* ---------- Cartouche du bas ---------- */
+.bottom{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"info actions" "status status";
+  gap:6px 16px;align-items:center;
+  padding-block:10px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  background:var(--panel);border-top:1px solid var(--line);
+}
+.info{grid-area:info;min-width:0}
+.name{font-family:var(--f-display);font-weight:600;font-size:21px;line-height:1.2;text-wrap:balance;min-height:1.2em}
+.meta{color:var(--muted);font-size:13px}
+.meta strong{color:var(--text);font-weight:500}
+.actions{grid-area:actions;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.status{grid-area:status;display:flex;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.keys{display:flex;gap:4px 12px;flex-wrap:wrap}
+kbd{font:11px/1.6 var(--f-mono);color:var(--text);background:var(--raise);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;margin-right:3px}
+body.is-grid .k-one, body:not(.is-grid) .k-grid{display:none}
+@media (max-width:640px){
+  .bottom{grid-template-columns:minmax(0,1fr);grid-template-areas:"info" "actions" "status"}
+  .actions{justify-content:flex-start}
+  .keys{display:none}
+  .hit::after{display:none}
+}
+
+/* ---------- Favoris ---------- */
+.panel{
+  position:fixed;inset:0;z-index:30;overflow:auto;background:var(--ink-veil);
+  padding-block:20px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.panel-inner{max-width:1400px;margin:0 auto;display:grid;gap:16px}
+.panel-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.panel h2{margin:0;font-family:var(--f-display);font-weight:600;font-size:27px;text-wrap:balance}
+.panel-actions{display:flex;gap:8px;flex-wrap:wrap}
+#favGrid{grid-template-columns:repeat(auto-fill, minmax(190px, 1fr))}
+.empty{color:var(--muted);margin:24px 0;font-size:15px}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom, 0px));z-index:40;
+  transform:translate(-50%, 8px);opacity:0;pointer-events:none;
+  background:var(--text);color:var(--ink);padding:8px 14px;border-radius:8px;font-weight:500;
+  transition:opacity .18s, transform .18s;
+}
+.toast.show{opacity:1;transform:translate(-50%, 0)}
+@media (prefers-reduced-motion:reduce){
+  .toast,.hit::after,.tile figcaption,.heart{transition:none}
+  .loader::before{animation-duration:2.4s}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Pioche<small>illustrations Magic</small></div>
+  <form id="searchForm" class="search" role="search">
+    <input id="q" type="search" autocomplete="off" spellcheck="false" aria-label="Filtre Scryfall"
+      placeholder='Filtre Scryfall : art:forest, t:dragon, artist:"John Avon"…'>
+    <button type="submit" id="go">Piocher</button>
+  </form>
+  <div class="toggles">
+    <div class="seg" role="group" aria-label="Affichage">
+      <button type="button" id="modeOne" aria-pressed="true">Une par une</button>
+      <button type="button" id="modeGrid" aria-pressed="false">Planche</button>
+    </div>
+    <div class="seg" role="group" aria-label="Format">
+      <button type="button" id="fmtArt" aria-pressed="true">Illustration</button>
+      <button type="button" id="fmtCard" aria-pressed="false">Carte</button>
+    </div>
+    <button type="button" id="favBtn" class="ghost">Favoris <span id="favCount" class="count-pill">0</span></button>
+  </div>
+  <div class="filters">
+    <nav class="presets" id="presets" aria-label="Sélections rapides"></nav>
+    <div class="filter-toggles">
+      <button type="button" id="noUbBtn" class="chip toggle" aria-pressed="true"
+        title="Exclut les cartes Universes Beyond : Marvel, Warhammer 40,000, Seigneur des Anneaux, Final Fantasy, Doctor Who…">Sans crossovers</button>
+      <button type="button" id="extrasBtn" class="chip toggle" aria-pressed="false"
+        title="Ajoute les jetons et les cartes de plan de Planechase (grands paysages), que Scryfall masque par défaut">Jetons et plans</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section id="single" class="stage" aria-label="Illustration">
+    <img id="art" alt="">
+    <button type="button" class="hit prev" id="hitPrev" aria-label="Illustration précédente"></button>
+    <button type="button" class="hit next" id="hitNext" aria-label="Illustration suivante"></button>
+  </section>
+  <section id="grid" class="tiles" aria-label="Planche d'illustrations" hidden></section>
+  <div id="message" class="message" hidden></div>
+  <div id="loader" class="loader" hidden>Pioche en cours…</div>
+</main>
+
+<footer class="bottom">
+  <div class="info">
+    <div id="name" class="name"></div>
+    <div id="meta" class="meta"></div>
+  </div>
+  <div id="actions" class="actions" hidden>
+    <button type="button" id="favToggle" class="ghost fav-ic" title="Favori (F)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.2-4.4-9.3-9C1.2 8.1 3.2 4.5 6.7 4.5c2.2 0 3.9 1.3 5.3 3.2 1.4-1.9 3.1-3.2 5.3-3.2 3.5 0 5.5 3.6 4 7-2.1 4.6-9.3 9-9.3 9z"/></svg>
+      <span id="favLabel">Favori</span>
+    </button>
+    <a id="lnkScry" class="ghost" target="_blank" rel="noopener">Scryfall ↗</a>
+    <a id="lnkArt" class="ghost" target="_blank" rel="noopener" title="Les illustrateurs y publient souvent leurs œuvres en haute définition">Artiste sur ArtStation ↗</a>
+  </div>
+  <div class="status">
+    <span id="count"></span>
+    <span class="keys k-one"><span><kbd>←</kbd><kbd>→</kbd>naviguer</span><span><kbd>G</kbd>planche</span><span><kbd>F</kbd>favori</span><span><kbd>C</kbd>carte entière</span><span><kbd>/</kbd>filtre</span></span>
+    <span class="keys k-grid"><span><kbd>←</kbd><kbd>→</kbd>planche précédente / suivante</span><span><kbd>G</kbd>une par une</span><span>clic : agrandir</span></span>
+  </div>
+</footer>
+
+<div id="favPanel" class="panel" role="dialog" aria-modal="true" aria-labelledby="favTitle" hidden>
+  <div class="panel-inner">
+    <div class="panel-head">
+      <h2 id="favTitle">Favoris</h2>
+      <div class="panel-actions">
+        <button type="button" id="favCopy" class="ghost">Copier la liste</button>
+        <button type="button" id="favClear" class="ghost">Tout retirer</button>
+        <button type="button" id="favClose" class="ghost">Fermer <kbd>Échap</kbd></button>
+      </div>
+    </div>
+    <p id="favEmpty" class="empty">Aucun favori pour l'instant. Pendant le défilement, appuie sur <code>F</code> ou sur le cœur d'une vignette pour garder une illustration ici.</p>
+    <div id="favGrid" class="tiles"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const API = 'https://api.scryfall.com/cards/search';
+  const PAGE = 175;            // taille d'une page de résultats Scryfall
+  const BASE_QUERY = 'cmc>=0'; // « toutes les cartes » quand le filtre est vide
+  const AHEAD = 8;             // illustrations préchargées d'avance en mode une par une
+  const PER_PAGE = 6;          // illustrations prélevées au hasard dans chaque page chargée
+  const SMALL = 4;             // jusqu'à 4 pages : on charge toute la sélection et on mélange tout
+  const TARGET = 42;           // taille visée pour la réserve (environ 7 pages différentes)
+  const MIN_MIX = 5;           // on ne tire que si la réserve mélange au moins 5 pages
+  const MAX_INFLIGHT = 3;      // pages chargées en parallèle
+  const PKEY = 'pioche-magic:prefs';
+  const FKEY = 'pioche-magic:favoris';
+  const STALE = { kind: 'stale' };
+  const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.2-4.4-9.3-9C1.2 8.1 3.2 4.5 6.7 4.5c2.2 0 3.9 1.3 5.3 3.2 1.4-1.9 3.1-3.2 5.3-3.2 3.5 0 5.5 3.6 4 7-2.1 4.6-9.3 9-9.3 9z"/></svg>';
+
+  const PRESETS = [
+    ['Tout', ''],
+    ['Paysages', 't:land'],
+    ['Lieux légendaires', 't:legendary t:land'],
+    ['Créatures', 't:creature'],
+    ['Personnages', 't:legendary t:creature'],
+    ['Dragons', 't:dragon'],
+    ['Anges et démons', '(t:angel or t:demon)'],
+    ['Morts-vivants', '(t:zombie or t:skeleton or t:spirit or t:vampire)'],
+    ['Objets', 't:artifact -t:creature'],
+    ['Sorts en action', '(t:instant or t:sorcery)'],
+    ['Plans (Planechase)', '(t:plane or t:phenomenon)', true],
+    ['Jetons', 't:token', true],
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    q: $('q'), form: $('searchForm'), presets: $('presets'),
+    modeOne: $('modeOne'), modeGrid: $('modeGrid'), fmtArt: $('fmtArt'), fmtCard: $('fmtCard'),
+    favBtn: $('favBtn'), favCount: $('favCount'), extras: $('extrasBtn'), noUb: $('noUbBtn'),
+    main: $('main'), single: $('single'), art: $('art'), hitPrev: $('hitPrev'), hitNext: $('hitNext'),
+    grid: $('grid'), message: $('message'), loader: $('loader'),
+    name: $('name'), meta: $('meta'), actions: $('actions'), favToggle: $('favToggle'), favLabel: $('favLabel'),
+    lnkScry: $('lnkScry'), lnkArt: $('lnkArt'), count: $('count'),
+    favPanel: $('favPanel'), favGrid: $('favGrid'), favEmpty: $('favEmpty'),
+    favCopy: $('favCopy'), favClear: $('favClear'), favClose: $('favClose'), toast: $('toast'),
+  };
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+  };
+
+  const S = {
+    q: '', gen: 0, renderId: 0,
+    total: 0, nPages: 0, pages: [], pool: [], seen: new Set(), inflight: new Set(), recent: [],
+    take: PER_PAGE, cycleAdded: 0, recycles: 0,
+    history: [], pos: 0, mode: 'one', fmt: 'art', gridN: 24, extras: false, noUB: true,
+  };
+
+  /* ---------- Outils ---------- */
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const range = (a, b) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i);
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  }
+  const fmtNum = (n) => n.toLocaleString('fr-FR');
+
+  // Scryfall demande ~100 ms entre deux requêtes : on espace les départs, sans attendre les réponses.
+  let nextSlot = 0;
+  async function api(url) {
+    const now = Date.now();
+    const at = Math.max(now, nextSlot);
+    nextSlot = at + 110;
+    if (at > now) await sleep(at - now);
+    let res;
+    try { res = await fetch(url, { headers: { Accept: 'application/json' } }); }
+    catch (e) { throw Object.assign(new Error('network'), { kind: 'network' }); }
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw Object.assign(new Error((body && body.details) || ('Erreur ' + res.status)), { kind: 'http', status: res.status });
+    return body;
+  }
+  // Ajoute l'exclusion des crossovers (Universes Beyond) à la recherche.
+  // Les parenthèses évitent qu'un « or » dans le filtre ne laisse passer une partie des cartes.
+  function buildQuery(q) {
+    let s = q || BASE_QUERY;
+    if (S.noUB) s = (/\bor\b/i.test(s) ? `(${s})` : s) + ' not:universesbeyond';
+    return s;
+  }
+  const pageUrl = (q, n) => `${API}?q=${encodeURIComponent(buildQuery(q))}&unique=art&order=name&page=${n}${S.extras ? '&include_extras=true' : ''}`;
+
+  function norm(raw) {
+    const faces = raw.card_faces || [];
+    const face = raw.image_uris ? raw : faces.find((f) => f.image_uris);
+    const iu = face && face.image_uris;
+    if (!iu || !iu.art_crop) return null;
+    return {
+      id: raw.id,
+      ill: String(face.illustration_id || raw.illustration_id || raw.id),
+      name: face.name || raw.name,
+      artist: face.artist || raw.artist || 'Artiste inconnu',
+      set: raw.set_name || '',
+      year: (raw.released_at || '').slice(0, 4),
+      art: iu.art_crop,
+      normal: iu.normal || iu.large || iu.art_crop,
+      large: iu.large || iu.normal || iu.art_crop,
+      uri: raw.scryfall_uri,
+    };
+  }
+  const srcOf = (c, ctx) => (S.fmt === 'art' ? c.art : (ctx === 'one' ? c.large : c.normal));
+
+  /* ---------- Tirage au hasard ---------- */
+  // Scryfall renvoie les résultats par pages de 175 triées par nom : une page est donc une tranche
+  // alphabétique (« Wall of… »). Pour un vrai mélange, on ne garde que quelques illustrations prises
+  // au hasard dans chaque page, on charge plusieurs pages en parallèle, et on ne tire une carte que
+  // lorsque la réserve mélange assez de pages différentes.
+  function addCards(list, pg) {
+    const fresh = [];
+    for (const raw of list || []) {
+      const c = norm(raw);
+      if (c && !S.seen.has(c.ill)) fresh.push(c);
+    }
+    shuffle(fresh);
+    const kept = fresh.slice(0, S.take);
+    for (const c of kept) { c.pg = pg; S.seen.add(c.ill); S.pool.push(c); }
+    S.cycleAdded += kept.length;
+  }
+
+  // Lance le chargement de la prochaine page du tirage (les pages sont dans un ordre aléatoire).
+  function loadPage() {
+    const n = S.pages.pop();
+    if (n == null) return;
+    const g = S.gen;
+    const set = S.inflight;
+    const p = api(pageUrl(S.q, n))
+      .then((j) => { if (g === S.gen) addCards(j.data, n); })
+      .catch((e) => {
+        if (g !== S.gen) return;
+        if (e.kind === 'network') { S.pages.push(n); throw e; }
+        // autre erreur sur une page isolée : on passe à la suivante
+      })
+      .finally(() => set.delete(p));
+    p.catch(() => {});
+    set.add(p);
+  }
+
+  // Garde la réserve pleine, avec au plus MAX_INFLIGHT pages en cours de chargement.
+  function topUp() {
+    while (S.pages.length && S.inflight.size < MAX_INFLIGHT
+      && S.pool.length + S.inflight.size * S.take < TARGET) loadPage();
+  }
+
+  const pagesIn = (pool) => new Set(pool.map((c) => c.pg)).size;
+
+  async function draw() {
+    const g = S.gen;
+    for (;;) {
+      const more = S.pages.length > 0 || S.inflight.size > 0;
+      if (S.pool.length && (!more || pagesIn(S.pool) >= Math.min(MIN_MIX, S.nPages))) break;
+      if (!more) {
+        if (!S.nPages) throw { kind: 'empty' };
+        // Toutes les pages ont servi : nouveau tour dans un nouvel ordre.
+        // Si un tour complet n'a rien apporté de neuf, tout a été vu : on repart de zéro.
+        if (!S.cycleAdded) {
+          if (S.recycles >= 1) throw { kind: 'empty' };
+          S.recycles++;
+          S.seen.clear();
+        }
+        S.cycleAdded = 0;
+        S.pages = shuffle(range(1, S.nPages));
+      }
+      topUp();
+      if (!S.inflight.size) loadPage();
+      await Promise.race(S.inflight);
+      if (g !== S.gen) throw STALE;
+    }
+    S.recycles = 0;
+    // Tirage au hasard, en évitant les pages des trois derniers tirages.
+    let i = -1;
+    for (let t = 0; t < 16; t++) {
+      const j = Math.floor(Math.random() * S.pool.length);
+      if (!S.recent.includes(S.pool[j].pg)) { i = j; break; }
+    }
+    if (i < 0) i = Math.floor(Math.random() * S.pool.length);
+    const c = S.pool[i];
+    S.pool[i] = S.pool[S.pool.length - 1];
+    S.pool.pop();
+    S.recent.push(c.pg);
+    if (S.recent.length > 3) S.recent.shift();
+    topUp();
+    return c;
+  }
+
+  async function ensure(k) {
+    const g = S.gen;
+    while (S.history.length < k) {
+      const c = await draw();
+      if (g !== S.gen) throw STALE;
+      S.history.push(c);
+    }
+  }
+
+  const cache = new Map();
+  function preload(url) {
+    if (!url || cache.has(url)) return;
+    const im = new Image();
+    im.decoding = 'async';
+    im.src = url;
+    cache.set(url, im);
+    if (cache.size > 400) cache.delete(cache.keys().next().value);
+  }
+  function isReady(url) { const im = cache.get(url); return !!(im && im.complete && im.naturalWidth); }
+
+  /* ---------- Affichage ---------- */
+  let loaderTimer;
+  function loading(on, delay = 140) {
+    clearTimeout(loaderTimer);
+    if (on) loaderTimer = setTimeout(() => { el.loader.hidden = false; }, delay);
+    else el.loader.hidden = true;
+  }
+
+  function clearInfo() {
+    el.name.textContent = '';
+    el.meta.textContent = '';
+    el.actions.hidden = true;
+  }
+
+  function showMessage(parts) {
+    const p = document.createElement('p');
+    for (const x of parts) {
+      if (typeof x === 'string') p.append(x);
+      else { const c = document.createElement('code'); c.textContent = x.code; p.append(c); }
+    }
+    el.message.replaceChildren(p);
+    el.message.hidden = false;
+    el.single.hidden = true;
+    el.grid.hidden = true;
+  }
+
+  function fail(e, g) {
+    if (!e || e === STALE || e.kind === 'stale' || g !== S.gen) return;
+    loading(false);
+    clearInfo();
+    el.count.textContent = '';
+    if (e.kind === 'network') {
+      showMessage(['Impossible de joindre Scryfall. Si tu vois ce message dans l’aperçu de claude.ai, c’est normal : télécharge le fichier et ouvre-le directement dans ton navigateur. Sinon, vérifie ta connexion puis relance avec ', { code: 'Piocher' }, '.']);
+    } else if (e.kind === 'empty' || e.status === 404) {
+      showMessage(['Aucune illustration ne correspond à ', { code: S.q || 'tout' }, '. Essaie par exemple ', { code: 'art:forest' }, ', ', { code: 't:dragon' }, ' ou ', { code: 'artist:"John Avon"' }, '.']);
+    } else {
+      showMessage(['Scryfall n’a pas compris ce filtre : ', e.message || 'erreur inconnue', ' (syntaxe sur scryfall.com/docs/syntax)']);
+    }
+  }
+
+  function updateCount() {
+    if (!S.total) { el.count.textContent = ''; return; }
+    const total = fmtNum(S.total);
+    el.count.textContent = S.mode === 'one'
+      ? `Tirage n° ${fmtNum(S.pos + 1)} · ${total} illustrations dans la sélection`
+      : `Planche ${fmtNum(Math.floor(S.pos / S.gridN) + 1)} · ${total} illustrations dans la sélection`;
+  }
+
+  function showInfo(c) {
+    el.name.textContent = c.name;
+    const strong = document.createElement('strong');
+    strong.textContent = c.artist;
+    el.meta.replaceChildren('Illustration de ', strong, c.set ? ` · ${c.set}${c.year ? ' (' + c.year + ')' : ''}` : '');
+    el.lnkScry.href = c.uri;
+    el.lnkArt.href = 'https://www.artstation.com/search?sort_by=relevance&query=' + encodeURIComponent(c.artist);
+    el.actions.hidden = false;
+    syncFavButton();
+  }
+
+  async function renderOne() {
+    const r = ++S.renderId;
+    const g = S.gen;
+    el.message.hidden = true;
+    el.grid.hidden = true;
+    el.single.hidden = false;
+    if (!S.history[S.pos]) {
+      loading(true);
+      try { await ensure(S.pos + 1); } catch (e) { fail(e, g); return; }
+      if (r !== S.renderId) return;
+    }
+    const c = S.history[S.pos];
+    const url = srcOf(c, 'one');
+    if (el.art.dataset.url !== url) {
+      el.art.dataset.url = url;
+      loading(!isReady(url));
+      el.art.src = url;
+    } else {
+      loading(false);
+    }
+    el.art.alt = `${c.name}, illustration de ${c.artist}`;
+    showInfo(c);
+    updateCount();
+    ensure(S.pos + AHEAD + 1).then(() => {
+      if (g !== S.gen) return;
+      for (let i = S.pos + 1; i <= S.pos + AHEAD; i++) if (S.history[i]) preload(srcOf(S.history[i], 'one'));
+    }).catch(() => {});
+  }
+
+  function gridSize() {
+    const w = el.main.clientWidth - 32;
+    const h = el.main.clientHeight - 32;
+    const ratio = S.fmt === 'art' ? 626 / 457 : 488 / 680;
+    const gap = 10;
+    const cols = Math.max(2, Math.round(w / (S.fmt === 'art' ? 270 : 190)));
+    const tileW = (w - gap * (cols - 1)) / cols;
+    const rows = Math.max(2, Math.floor((h + gap) / (tileW / ratio + gap)));
+    return { cols, n: cols * rows };
+  }
+
+  function tile(c, onOpen) {
+    const fig = document.createElement('figure');
+    fig.className = 'tile';
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'open';
+    open.setAttribute('aria-label', `Agrandir ${c.name}, illustration de ${c.artist}`);
+    const img = document.createElement('img');
+    img.alt = '';
+    img.decoding = 'async';
+    img.addEventListener('error', () => fig.classList.add('broken'), { once: true });
+    img.src = srcOf(c, 'grid');
+    open.append(img);
+    open.addEventListener('click', onOpen);
+    const cap = document.createElement('figcaption');
+    const b = document.createElement('b');
+    b.textContent = c.name;
+    cap.append(b, document.createElement('br'), c.artist);
+    const h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'heart';
+    h.dataset.ill = c.ill;
+    h.innerHTML = HEART;
+    h.setAttribute('aria-label', `Favori : ${c.name}`);
+    h.classList.toggle('on', isFav(c));
+    h.addEventListener('click', (e) => { e.stopPropagation(); favToggle(c); });
+    fig.append(open, cap, h);
+    return fig;
+  }
+
+  async function renderGrid() {
+    const r = ++S.renderId;
+    const g = S.gen;
+    el.message.hidden = true;
+    el.single.hidden = true;
+    el.grid.hidden = false;
+    const { cols, n } = gridSize();
+    S.gridN = n;
+    el.grid.style.setProperty('--cols', cols);
+    if (S.history.length < S.pos + n) {
+      loading(true);
+      try { await ensure(S.pos + n); } catch (e) { fail(e, g); return; }
+      if (r !== S.renderId) return;
+    }
+    loading(false);
+    const frag = document.createDocumentFragment();
+    S.history.slice(S.pos, S.pos + n).forEach((c, i) => {
+      const idx = S.pos + i;
+      frag.append(tile(c, () => { S.pos = idx; setMode('one'); }));
+    });
+    el.grid.replaceChildren(frag);
+    el.grid.scrollTop = 0;
+    el.name.textContent = `Planche ${fmtNum(Math.floor(S.pos / n) + 1)}`;
+    el.meta.textContent = `${n} illustrations · clique sur une image pour l’agrandir`;
+    el.actions.hidden = true;
+    updateCount();
+    ensure(S.pos + 2 * n).then(() => {
+      if (g !== S.gen) return;
+      S.history.slice(S.pos + n, S.pos + 2 * n).forEach((c) => preload(srcOf(c, 'grid')));
+    }).catch(() => {});
+  }
+
+  function render() { if (S.mode === 'grid') renderGrid(); else renderOne(); }
+
+  function step(d) {
+    if (!S.nPages || !el.message.hidden) return;
+    if (S.mode === 'one') {
+      const t = Math.max(0, S.pos + d);
+      if (t === S.pos) return;
+      S.pos = t;
+      renderOne();
+    } else {
+      const t = d > 0 ? S.pos + S.gridN : Math.max(0, S.pos - S.gridN);
+      if (t === S.pos) return;
+      S.pos = t;
+      renderGrid();
+    }
+  }
+
+  /* ---------- Lancement d'une sélection ---------- */
+  async function start(raw) {
+    const q = (raw || '').trim();
+    const g = ++S.gen;
+    S.renderId++;
+    Object.assign(S, { q, total: 0, nPages: 0, pages: [], pool: [], seen: new Set(), inflight: new Set(), recent: [], recycles: 0, history: [], pos: 0, take: PER_PAGE, cycleAdded: 0 });
+    el.q.value = q;
+    syncPresets();
+    savePrefs();
+    el.message.hidden = true;
+    el.grid.replaceChildren();
+    el.art.removeAttribute('src');
+    el.art.dataset.url = '';
+    el.single.hidden = S.mode !== 'one';
+    el.grid.hidden = S.mode !== 'grid';
+    clearInfo();
+    el.count.textContent = '';
+    loading(true, 0);
+    try {
+      const j = await api(pageUrl(q, 1));
+      if (g !== S.gen) return;
+      S.total = j.total_cards || (j.data || []).length;
+      S.nPages = Math.max(1, Math.ceil(S.total / PAGE));
+      if (S.nPages <= SMALL) {
+        // Petite sélection : on charge tout et on mélange l'ensemble.
+        S.take = Infinity;
+        addCards(j.data, 1);
+        S.pages = shuffle(range(2, S.nPages));
+        while (S.pages.length) loadPage();
+        await Promise.all(S.inflight);
+        if (g !== S.gen) return;
+      } else {
+        // Grande sélection : la page 1 n'est que le début de l'alphabet, on la remet dans le tirage.
+        // Les pages suivantes, prises au hasard, se chargent en parallèle.
+        S.take = PER_PAGE;
+        S.pages = shuffle(range(1, S.nPages));
+        topUp();
+      }
+      if (g !== S.gen) return;
+      render();
+    } catch (e) {
+      fail(e, g);
+    }
+  }
+
+  /* ---------- Modes ---------- */
+  function applyModeUI() {
+    el.modeOne.setAttribute('aria-pressed', String(S.mode === 'one'));
+    el.modeGrid.setAttribute('aria-pressed', String(S.mode === 'grid'));
+    document.body.classList.toggle('is-grid', S.mode === 'grid');
+  }
+  function applyFmtUI() {
+    el.fmtArt.setAttribute('aria-pressed', String(S.fmt === 'art'));
+    el.fmtCard.setAttribute('aria-pressed', String(S.fmt === 'card'));
+    document.body.classList.toggle('fmt-card', S.fmt === 'card');
+  }
+  function applyFilterUI() {
+    el.extras.setAttribute('aria-pressed', String(S.extras));
+    el.noUb.setAttribute('aria-pressed', String(S.noUB));
+  }
+  function savePrefs() { store.set(PKEY, { q: S.q, mode: S.mode, fmt: S.fmt, extras: S.extras, noUB: S.noUB }); }
+  function setExtras(on) { S.extras = on; applyFilterUI(); start(S.q); }
+  function setNoUb(on) { S.noUB = on; applyFilterUI(); start(S.q); }
+  function setMode(m) {
+    S.mode = m;
+    applyModeUI();
+    savePrefs();
+    if (S.nPages && el.message.hidden) render();
+  }
+  function setFmt(f) {
+    S.fmt = f;
+    applyFmtUI();
+    savePrefs();
+    el.art.dataset.url = '';
+    if (S.nPages && el.message.hidden) render();
+  }
+
+  function buildPresets() {
+    for (const [label, q, needsExtras] of PRESETS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = label;
+      b.dataset.q = q;
+      b.title = q || 'Toutes les cartes';
+      b.addEventListener('click', () => {
+        if (needsExtras && !S.extras) { S.extras = true; applyFilterUI(); }
+        start(q);
+      });
+      el.presets.append(b);
+    }
+  }
+  function syncPresets() {
+    el.presets.querySelectorAll('.chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.q === S.q)));
+  }
+
+  /* ---------- Favoris ---------- */
+  let favs = store.get(FKEY, []);
+  if (!Array.isArray(favs)) favs = [];
+  const isFav = (c) => favs.some((f) => f.ill === c.ill);
+
+  let toastTimer;
+  function toast(msg) {
+    el.toast.textContent = msg;
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.toast.classList.remove('show'), 1400);
+  }
+
+  function favToggle(c) {
+    const i = favs.findIndex((f) => f.ill === c.ill);
+    if (i >= 0) favs.splice(i, 1); else favs.unshift(c);
+    store.set(FKEY, favs);
+    syncFav();
+    toast(i >= 0 ? 'Retirée des favoris' : 'Ajoutée aux favoris');
+  }
+
+  function syncFavButton() {
+    const c = S.mode === 'one' ? S.history[S.pos] : null;
+    const on = !!(c && isFav(c));
+    el.favToggle.classList.toggle('on', on);
+    el.favLabel.textContent = on ? 'En favori' : 'Favori';
+  }
+
+  function syncFav() {
+    el.favCount.textContent = String(favs.length);
+    syncFavButton();
+    const ids = new Set(favs.map((f) => f.ill));
+    el.grid.querySelectorAll('.heart').forEach((h) => h.classList.toggle('on', ids.has(h.dataset.ill)));
+    if (!el.favPanel.hidden) renderFavPanel();
+  }
+
+  function renderFavPanel() {
+    el.favEmpty.hidden = favs.length > 0;
+    el.favCopy.disabled = !favs.length;
+    el.favClear.disabled = !favs.length;
+    resetClear();
+    el.favGrid.replaceChildren(...favs.map((c) => tile(c, () => openFav(c))));
+  }
+
+  function openFav(c) {
+    closeFav();
+    if (S.mode === 'one' && S.history.length) { S.history.splice(S.pos + 1, 0, c); S.pos++; }
+    else { S.history.splice(S.pos, 0, c); }
+    if (!S.nPages) return;
+    setMode('one');
+  }
+
+  function openPanel() { renderFavPanel(); el.favPanel.hidden = false; el.favClose.focus(); }
+  function closeFav() { el.favPanel.hidden = true; el.favBtn.focus(); }
+
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; }
+    catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.append(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove();
+      return ok;
+    }
+  }
+
+  let clearArmed = false;
+  let clearTimer;
+  function resetClear() { clearArmed = false; clearTimeout(clearTimer); el.favClear.textContent = 'Tout retirer'; }
+
+  /* ---------- Événements ---------- */
+  el.form.addEventListener('submit', (e) => { e.preventDefault(); el.q.blur(); start(el.q.value); });
+  el.modeOne.addEventListener('click', () => setMode('one'));
+  el.modeGrid.addEventListener('click', () => setMode('grid'));
+  el.fmtArt.addEventListener('click', () => setFmt('art'));
+  el.fmtCard.addEventListener('click', () => setFmt('card'));
+  el.extras.addEventListener('click', () => setExtras(!S.extras));
+  el.noUb.addEventListener('click', () => setNoUb(!S.noUB));
+  el.hitPrev.addEventListener('click', () => step(-1));
+  el.hitNext.addEventListener('click', () => step(1));
+  el.favToggle.addEventListener('click', () => { const c = S.history[S.pos]; if (c) favToggle(c); });
+  el.favBtn.addEventListener('click', openPanel);
+  el.favClose.addEventListener('click', closeFav);
+  el.favCopy.addEventListener('click', async () => {
+    const text = favs.map((f) => `${f.name} — ${f.artist}${f.set ? ' (' + f.set + (f.year ? ', ' + f.year : '') + ')' : ''} ${f.uri}`).join('\n');
+    const ok = await copyText(text);
+    toast(ok ? `Liste copiée (${favs.length})` : 'Copie impossible dans ce navigateur');
+  });
+  el.favClear.addEventListener('click', () => {
+    if (!clearArmed) {
+      clearArmed = true;
+      el.favClear.textContent = 'Confirmer : tout retirer';
+      clearTimer = setTimeout(resetClear, 3000);
+      return;
+    }
+    favs = [];
+    store.set(FKEY, favs);
+    syncFav();
+    toast('Favoris vidés');
+  });
+
+  // La molette fait défiler les raccourcis horizontalement.
+  el.presets.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { el.presets.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+
+  let touchX = null;
+  el.single.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  el.single.addEventListener('touchend', (e) => {
+    if (touchX == null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) > 40) { e.preventDefault(); step(dx < 0 ? 1 : -1); }
+  });
+
+  el.art.addEventListener('load', () => loading(false));
+  el.art.addEventListener('error', () => {
+    if (!el.art.getAttribute('src')) return;
+    loading(false);
+    el.meta.append(' · image indisponible');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const typing = e.target.closest && e.target.closest('input, textarea, select');
+    if (e.key === 'Escape') {
+      if (!el.favPanel.hidden) closeFav();
+      else if (typing) e.target.blur();
+      return;
+    }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!el.favPanel.hidden) return;
+    const k = e.key.toLowerCase();
+    if (e.key === 'ArrowRight' || e.key === ' ') {
+      e.preventDefault();
+      if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur();
+      step(1);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      step(-1);
+    } else if (k === 'g') {
+      setMode(S.mode === 'one' ? 'grid' : 'one');
+    } else if (k === 'c') {
+      setFmt(S.fmt === 'art' ? 'card' : 'art');
+    } else if (k === 'f' && S.mode === 'one') {
+      const c = S.history[S.pos];
+      if (c) favToggle(c);
+    } else if (k === 'o' && S.mode === 'one') {
+      const c = S.history[S.pos];
+      if (c) window.open(c.uri, '_blank', 'noopener');
+    } else if (e.key === '/') {
+      e.preventDefault();
+      el.q.focus();
+      el.q.select();
+    }
+  });
+
+  let resizeTimer;
+  addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (S.mode === 'grid' && S.nPages && !el.grid.hidden && gridSize().n !== S.gridN) renderGrid();
+    }, 160);
+  });
+
+  /* ---------- Démarrage ---------- */
+  const prefs = store.get(PKEY, {}) || {};
+  S.mode = prefs.mode === 'grid' ? 'grid' : 'one';
+  S.fmt = prefs.fmt === 'card' ? 'card' : 'art';
+  S.extras = prefs.extras === true;
+  S.noUB = prefs.noUB !== false;
+  applyModeUI();
+  applyFmtUI();
+  applyFilterUI();
+  buildPresets();
+  syncFav();
+  start(typeof prefs.q === 'string' ? prefs.q : '');
+})();
+</script>
+</body>
+</html>

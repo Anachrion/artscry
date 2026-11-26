@@ -1,0 +1,120 @@
+<% content_for :body_class, "app" %>
+<% content_for :head do %>
+  <%= javascript_import_module_tag "explorer" %>
+<% end %>
+
+<header class="top">
+  <div class="brand">Artscry<small>Magic card art</small></div>
+  <form id="searchForm" class="search" role="search">
+    <input id="q" type="search" autocomplete="off" spellcheck="false" aria-label="Scryfall filter"
+      placeholder='Scryfall filter: art:forest, t:dragon, artist:"John Avon"…'>
+    <button type="submit" id="go">Draw</button>
+  </form>
+  <div class="toggles">
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="modeOne" aria-pressed="true">One by one</button>
+      <button type="button" id="modeGrid" aria-pressed="false">Sheet</button>
+    </div>
+    <div class="seg" role="group" aria-label="Format">
+      <button type="button" id="fmtArt" aria-pressed="true">Art</button>
+      <button type="button" id="fmtCard" aria-pressed="false">Card</button>
+    </div>
+    <button type="button" id="setBtn" class="ghost" title="Browse by set">Sets</button>
+    <button type="button" id="favBtn" class="ghost">Favorites <span id="favCount" class="count-pill">0</span></button>
+    <button type="button" class="ghost theme-btn" data-theme-toggle>Theme</button>
+    <button type="button" id="accBtn" class="ghost" title="Account and seen illustrations">Seen <span id="seenCount" class="count-pill">0</span></button>
+  </div>
+  <div class="filters">
+    <button type="button" id="setChip" class="chip set-chip" hidden title="Remove the set filter"></button>
+    <nav class="presets" id="presets" aria-label="Quick picks"></nav>
+    <div class="filter-toggles">
+      <button type="button" id="hideSeenBtn" class="chip toggle" aria-pressed="true"
+        title="Never show illustrations you have already seen again (on any device)">Hide seen</button>
+      <button type="button" id="noUbBtn" class="chip toggle" aria-pressed="true"
+        title="Excludes Universes Beyond cards: Marvel, Warhammer 40,000, Lord of the Rings, Final Fantasy, Doctor Who…">No crossovers</button>
+      <button type="button" id="extrasBtn" class="chip toggle" aria-pressed="false"
+        title="Adds tokens and Planechase plane cards (wide landscapes), which Scryfall hides by default">Tokens & planes</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section id="single" class="stage" aria-label="Illustration">
+    <img id="art" alt="">
+    <button type="button" class="hit prev" id="hitPrev" aria-label="Previous illustration"></button>
+    <button type="button" class="hit next" id="hitNext" aria-label="Next illustration"></button>
+  </section>
+  <section id="grid" class="tiles" aria-label="Sheet of illustrations" hidden></section>
+  <div id="message" class="message" hidden></div>
+  <div id="loader" class="loader" hidden>Drawing…</div>
+</main>
+
+<footer class="bottom">
+  <div class="info">
+    <div id="name" class="name"></div>
+    <div id="meta" class="meta"></div>
+  </div>
+  <div id="actions" class="actions" hidden>
+    <div id="rateOne" class="rate" role="group" aria-label="Rating (keys 1, 2, 3; 0 to remove)"></div>
+    <a id="lnkScry" class="ghost" target="_blank" rel="noopener">Scryfall ↗</a>
+    <a id="lnkArt" class="ghost" target="_blank" rel="noopener" title="Artists often post high-resolution versions of their work there">Artist on ArtStation ↗</a>
+  </div>
+  <div class="status">
+    <span id="count"></span>
+    <span class="keys k-one"><span><kbd>←</kbd><kbd>→</kbd>browse</span><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>hearts</span><span><kbd>0</kbd>remove</span><span><kbd>G</kbd>sheet</span><span><kbd>C</kbd>full card</span><span><kbd>/</kbd>filter</span></span>
+    <span class="keys k-grid"><span><kbd>←</kbd><kbd>→</kbd>previous / next sheet</span><span><kbd>G</kbd>one by one</span><span>click: enlarge</span></span>
+  </div>
+</footer>
+
+<div id="favPanel" class="panel" role="dialog" aria-modal="true" aria-labelledby="favTitle" hidden>
+  <div class="panel-inner">
+    <div class="panel-head">
+      <h2 id="favTitle">Favorites</h2>
+      <div class="panel-actions">
+        <button type="button" id="favCopy" class="ghost">Copy list</button>
+        <button type="button" id="favClose" class="ghost">Close <kbd>Esc</kbd></button>
+      </div>
+    </div>
+    <nav id="favTabs" class="tabs" aria-label="Filter by number of hearts"></nav>
+    <p id="favEmpty" class="empty"></p>
+    <div id="favGrid" class="tiles"></div>
+  </div>
+</div>
+
+<div id="setPanel" class="panel" role="dialog" aria-modal="true" aria-labelledby="setTitle" hidden>
+  <div class="panel-inner">
+    <div class="panel-head">
+      <h2 id="setTitle">Sets</h2>
+      <div class="panel-actions">
+        <input id="setSearch" class="set-search" type="search" placeholder="Search a set or code…" autocomplete="off" spellcheck="false" aria-label="Search sets">
+        <button type="button" id="setClose" class="ghost">Close <kbd>Esc</kbd></button>
+      </div>
+    </div>
+    <nav id="setTypes" class="tabs" aria-label="Filter by set type"></nav>
+    <p id="setEmpty" class="empty" hidden></p>
+    <ul id="setList" class="set-list"></ul>
+  </div>
+</div>
+
+<div id="accPanel" class="panel" role="dialog" aria-modal="true" aria-labelledby="accTitle" hidden>
+  <div class="panel-inner account">
+    <div class="panel-head">
+      <h2 id="accTitle">My account</h2>
+      <div class="panel-actions">
+        <button type="button" id="accClose" class="ghost">Close <kbd>Esc</kbd></button>
+      </div>
+    </div>
+    <dl>
+      <dt>Signed in as</dt><dd><%= Current.user.email_address %></dd>
+      <dt>Illustrations seen</dt><dd id="accSeen">0</dd>
+      <dt>Favorites</dt><dd id="accFavs">0</dd>
+    </dl>
+    <p>Every illustration shown to you (one by one or on a sheet) is remembered and will not be offered again while “Hide seen” is on. Your favorites are always kept.</p>
+    <div class="row">
+      <button type="button" id="seenReset" class="ghost">Clear seen history</button>
+      <%= button_to "Sign out", session_path, method: :delete, class: "ghost", form: { style: "display:inline" } %>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
