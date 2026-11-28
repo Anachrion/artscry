@@ -223,6 +223,8 @@ body.is-grid .k-one, body:not(.is-grid) .k-grid{display:none}
 .account dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0}
 .account dt{color:var(--muted)}
 .account dd{margin:0;font-variant-numeric:tabular-nums}
+.progress{height:6px;margin-top:8px;border-radius:999px;background:var(--raise);overflow:hidden}
+.progress i{display:block;height:100%;min-width:2px;background:var(--accent);border-radius:inherit;transition:width .3s}
 .account .row{display:flex;gap:8px;flex-wrap:wrap}
 .account p{color:var(--muted);margin:0}
 

@@ -18,6 +18,7 @@ class Api::FlowTest < ActionDispatch::IntegrationTest
 
     get api_state_path, as: :json
     assert_equal %w[a b c], response.parsed_body["seen"].sort
+    assert_kind_of Integer, response.parsed_body["total"]
 
     delete api_seen_path, as: :json
     assert_equal 0, @user.seen_illustrations.count

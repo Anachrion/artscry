@@ -155,7 +155,11 @@
     </div>
     <dl>
       <dt>Signed in as</dt><dd><%= Current.user.email_address %></dd>
-      <dt>Illustrations seen</dt><dd id="accSeen">0</dd>
+      <dt>Illustrations seen</dt>
+      <dd>
+        <span id="accSeen">0</span>
+        <div class="progress" id="accProgress" hidden><i id="accBar"></i></div>
+      </dd>
       <dt>Favorites</dt><dd id="accFavs">0</dd>
     </dl>
     <p>Every illustration shown to you (one by one or on a sheet) is remembered and will not be offered again while “Hide seen” is on. Your favorites are always kept.</p>

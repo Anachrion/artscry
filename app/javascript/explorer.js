@@ -49,7 +49,7 @@ function boot() {
     favPanel: $('favPanel'), favGrid: $('favGrid'), favEmpty: $('favEmpty'), favTabs: $('favTabs'),
     favCopy: $('favCopy'), favClose: $('favClose'), toast: $('toast'),
     accBtn: $('accBtn'), seenCount: $('seenCount'), accPanel: $('accPanel'), accClose: $('accClose'),
-    accSeen: $('accSeen'),
+    accSeen: $('accSeen'), accProgress: $('accProgress'), accBar: $('accBar'),
     setBtn: $('setBtn'), setChip: $('setChip'), setPanel: $('setPanel'), setSearch: $('setSearch'), setClose: $('setClose'),
     setTypes: $('setTypes'), setList: $('setList'), setEmpty: $('setEmpty'), accFavs: $('accFavs'), seenReset: $('seenReset'),
   };
@@ -651,11 +651,23 @@ function boot() {
     paintRate(el.rateOne, levelOf(c));
   }
 
+  // Distinct paper illustrations in the catalog, sent by /api/state.
+  let catalogTotal = 0;
+
   function syncCounts() {
     el.favCount.textContent = fmtNum(ratings.size);
     el.accFavs.textContent = fmtNum(ratings.size);
     el.seenCount.textContent = fmtNum(everSeen.size);
-    el.accSeen.textContent = fmtNum(everSeen.size);
+    if (catalogTotal) {
+      const pct = Math.min(100, (everSeen.size / catalogTotal) * 100);
+      const pctTxt = pct > 0 && pct < 0.1 ? '<0.1' : pct.toFixed(pct < 10 ? 1 : 0);
+      el.accSeen.textContent = `${fmtNum(everSeen.size)} of ${fmtNum(catalogTotal)} (${pctTxt}%)`;
+      el.accBar.style.width = `${pct}%`;
+      el.accProgress.hidden = false;
+      el.seenCount.title = `${pctTxt}% of ${fmtNum(catalogTotal)} paper illustrations`;
+    } else {
+      el.accSeen.textContent = fmtNum(everSeen.size);
+    }
   }
 
   function syncFav() {
@@ -1035,6 +1047,7 @@ function boot() {
     try {
       const st = await server('GET', '/api/state');
       for (const i of st.seen) everSeen.add(i);
+      catalogTotal = st.total || 0;
       for (const c of st.ratings) ratings.set(c.ill, c);
     } catch (e) {
       toast('Could not load your history');
